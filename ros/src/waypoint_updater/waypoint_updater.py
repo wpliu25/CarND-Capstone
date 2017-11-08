@@ -45,7 +45,7 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         self.current_pos = msg.pose
-        rospy.loginfo("WaypointUpdater: current car position %s", self.current_pose)
+        rospy.loginfo("WaypointUpdater: current car position %s", self.current_pos)
         self.publish_waypoints()
 
     def waypoints_cb(self, waypoints):
@@ -87,8 +87,8 @@ class WaypointUpdater(object):
 
         for i in range(len(self.waypoints)):
             wp = self.waypoints[i]
-            wp_x = wp.position.x
-            wp_y = wp.position.y
+            wp_x = wp.pose.pose.position.x
+            wp_y = wp.pose.pose.position.y
 
             distance = math.sqrt((car_x - wp_x)**2 + (car_y - wp_y)**2)
 
