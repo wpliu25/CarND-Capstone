@@ -6,8 +6,8 @@ from pid import PID
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
-MAX_SPEED = 30
-MIN_SPEED = 0.001
+MAX_THROTTLE = 1
+MIN_THROTTLE = 0.001
 
 
 class Controller(object):
@@ -16,9 +16,9 @@ class Controller(object):
                                          kwargs['min_speed'], kwargs['max_lat_accel'],
                                          kwargs['max_steer_angle'])
 
-        self.low_pass_filter = LowPassFilter(0.11, 0.12)
+        self.low_pass_filter = LowPassFilter(0.2, 0.1)
 
-        self.throttle_control = PID(0.3, 0.0001, MIN_SPEED, MAX_SPEED)
+        self.throttle_control = PID(0.3, 0.0001, 0, -MAX_THROTTLE, MAX_THROTTLE)
 
         self.last_run_ts = None
 
