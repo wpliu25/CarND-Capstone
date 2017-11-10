@@ -22,6 +22,7 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
         self.waypoints = 0
+        self.num_waypoints = 0
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -98,7 +99,7 @@ class TLDetector(object):
         #TODO implement
 
         
-        if self.waypoints is None:
+        if self.waypoints is None or self.num_waypoints == 0:
             return None
 
         min_dist = 1e9
