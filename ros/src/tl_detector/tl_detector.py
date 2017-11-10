@@ -102,6 +102,8 @@ class TLDetector(object):
             return None
 
         min_dist = 1e9
+        index = None
+        
         for k in xrange(self.num_waypoints):
             delta_x = (self.waypoints.waypoints[k].pose.pose.position.x - pose.position.x)
             delta_y = (self.waypoints.waypoints[k].pose.pose.position.y - pose.position.y)
@@ -109,7 +111,7 @@ class TLDetector(object):
             # this is actuall dist_squared
             # but we can just use it as comparison
             dist = delta_x*delta_x + delta_y*delta_y
-            if dist < min_dist:
+            if dist < min_dist and delta_x > 0:
                 index = k
                 min_dist = dist
 
