@@ -99,7 +99,7 @@ class WaypointUpdater(object):
                 nearest_distance = distance
                 nearest_wp_idx = i
             else:
-                if distance < nearest_distance:
+                if distance < nearest_distance and wp_x > car_x:
                     nearest_distance = distance
                     nearest_wp_idx = i
 
