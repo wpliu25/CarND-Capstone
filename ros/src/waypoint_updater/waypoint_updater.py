@@ -4,6 +4,7 @@ from itertools import islice, cycle
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -22,8 +23,8 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 40  # Number of waypoints we will publish. You can change this number
-
+LOOKAHEAD_WPS = 300  # Number of waypoints we will publish. You can change this number
+ACCELERATION_MAX = 0.25  # copied from waypoint_loader
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -33,6 +34,9 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        # check if obstacle is needed?
+        #rospy.Subscriber('/obstacle_waypoints', '', self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -40,12 +44,15 @@ class WaypointUpdater(object):
 
         self.waypoints = None
         self.current_pos = None
+        self.current_wp = None
+        self.final_waypoints = None
+        self.updated_velocity_flag = False
 
         rospy.spin()
 
     def pose_cb(self, msg):
         self.current_pos = msg.pose
-        rospy.loginfo("WaypointUpdater: current car position %s", self.current_pos)
+        #rospy.loginfo("WaypointUpdater: current car position %s", self.current_pos)
         self.publish_waypoints()
 
     def waypoints_cb(self, waypoints):
@@ -56,9 +63,53 @@ class WaypointUpdater(object):
         rospy.loginfo("WaypointUpdater: received waypoints")
         self.publish_waypoints()
 
+    def calc_time_between_two_wps(self, wp1, wp2):
+        dist = self.distance(self.waypoints, wp1, wp2)
+        time = math.sqrt(2.0*dist/ACCELERATION_MAX)
+
+        return time
+
+    def calc_velocity_between_two_wps(self, wp2_velocity, time):
+        return wp2_velocity+ACCELERATION_MAX*time
+
+    def euclidean_distance(self, p1, p2):
+        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
+        return math.sqrt(x*x + y*y + z*z)
+
+    def decelerate(self, waypoints, stop_idx):
+        last = waypoints[stop_idx]
+        last.twist.twist.linear.x = 0.
+        for i, wp in enumerate(waypoints):
+            if i < stop_idx:
+                dist = self.euclidean_distance(wp.pose.pose.position, last.pose.pose.position)
+                vel = math.sqrt(2.0 * ACCELERATION_MAX * dist)
+                if vel < 1.:
+                    vel = 0.
+                wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+            else:
+                wp.twist.twist.linear.x = 0.0
+
+        return waypoints
+
+    def kmph2mps(self, velocity_kmph):
+        return (velocity_kmph * 1000.) / (60. * 60.)
+
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        traffic_light_wp = int(msg.data)
+        #rospy.loginfo("Traffic_cb got red tl wp index %s", traffic_light_wp)
+        if traffic_light_wp != -1: # red traffic light
+            #self.update_wp_velocities(traffic_light_wp)
+            if traffic_light_wp - self.current_wp < LOOKAHEAD_WPS:
+                traffic_light_wp -= 10
+                self.final_waypoints = self.decelerate(self.final_waypoints, traffic_light_wp - self.current_wp)
+                self.updated_velocity_flag = True
+            #rospy.loginfo("Traffic_cb got red tl wp index %s", traffic_light_wp)
+        else:
+            self.updated_velocity_flag = False
+            velocity = self.kmph2mps(rospy.get_param('~velocity'))
+            for wp in self.final_waypoints:
+                wp.twist.twist.linear.x = velocity
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -106,9 +157,18 @@ class WaypointUpdater(object):
         final_waypoints = list(islice(cycle(self.waypoints), nearest_wp_idx, nearest_wp_idx + LOOKAHEAD_WPS))
 
         lane = Lane()
-        lane.waypoints = final_waypoints
+        if not self.updated_velocity_flag:
+            self.final_waypoints = final_waypoints
+            #rospy.loginfo("publish_waypoints set final_waypoints back to self.waypoints")
+        lane.waypoints = self.final_waypoints
+        #for i in range(0, 10):
+        rospy.loginfo("publish_waypoints current velocity %s", self.final_waypoints[0].twist.twist.linear.x)
+
         lane.header.frame_id = '/world'
         lane.header.stamp = rospy.Time(0)
+
+        # save current wp
+        self.current_wp = nearest_wp_idx
 
         self.final_waypoints_pub.publish(lane)
 
