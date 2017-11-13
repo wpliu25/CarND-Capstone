@@ -10,6 +10,7 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import math
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -21,11 +22,12 @@ class TLDetector(object):
         self.waypoint = None
         self.camera_image = None
         self.lights = []
-        # self.light_waypoints = None
 
         self.waypoints = 0
         self.num_waypoints = 0
         self.stop_line_waypoints = None
+        self.traffic_light_waypoints = None
+        self.traffic_light_waypoints_ready = False
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -156,6 +158,16 @@ class TLDetector(object):
         # save this list
         self.stop_line_waypoints = stop_line_waypoints
 
+    def calc_traffic_light_waypoints(self):
+        traffic_light_waypoints = []
+        for light in self.lights:
+            idx = self.get_closest_waypoint(light.pose.pose)
+            traffic_light_waypoints.append((idx, light.pose.pose.position.x, light.pose.pose.position.y, light.state))
+
+        # save this list
+        self.traffic_light_waypoints = traffic_light_waypoints
+        self.traffic_light_waypoints_ready = True
+
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
             location and color
@@ -166,30 +178,33 @@ class TLDetector(object):
 
         """
         light = None
-        car_position = None
+        car_wp = None
         
         if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+            car_wp = self.get_closest_waypoint(self.pose.pose)
             # str = 'closest way point: %s'%car_position
             # rospy.loginfo(str)
 
         #TODO find the closest visible traffic light (if one exists)
+        # 1. find the closest stop line ahead
+        #
+        # 1.1. Find all the stop lines' relative way point distance from the car
         stop_line_waypoints_and_deltas = []
-        if self.stop_line_waypoints is not None and car_position is not None:
-            for t in self.stop_line_waypoints:
-                wp_idx = t[0]
-                x = t[1]
-                y = t[2]
+        if self.stop_line_waypoints is not None and car_wp is not None:
+            for t in self.stop_line_waypoints: 
+                sl_wp = t[0]
+                stop_line_x = t[1]
+                stop_line_y = t[2]
 
-                if wp_idx is not None:
-                    delta_idx = wp_idx - car_position
+                if sl_wp is not None:
+                    delta_idx = sl_wp - car_wp
                     # unwrap index if the stop line is behind our car
                     # this is necessary when we are close to the largest way point number
                     # because every stop line will be behind the car, i.e., delta_idx < 0
                     if(delta_idx < 0):
-                        delta_idx = self.num_waypoints + delta_idx
+                        delta_idx += self.num_waypoints
 
-                    stop_line_waypoints_and_deltas.append((wp_idx, delta_idx, x, y))
+                    stop_line_waypoints_and_deltas.append((sl_wp, delta_idx, stop_line_x, stop_line_y))
 
                     # if(delta_idx < 50):
                     #     #light = 0
@@ -199,20 +214,71 @@ class TLDetector(object):
             POS_THRESHOLD = 50.0
             COLOR_STR = ['RED', 'YELLOW', 'GREEN', 'NAN','UNKNOWN']
 
+            # Now we have found all the stop lines' way points and their relative way point distance from the car
+            #
+            # 1.2. Find the closest stop line ahead of the car
+            #
             if(len(stop_line_waypoints_and_deltas) > 0):
-                # sort the list by delta_idx
+                # sort the list by delta_idx, closest light first
                 stop_line_waypoints_and_deltas.sort(key=lambda s:s[1])
+                
                 # choose the first/closest light
-                closest_stop_line_waypoint_and_delta_idx = stop_line_waypoints_and_deltas[0]
+                # closest_stop_line is a tuple of (sl_wp, delta_idx, stop_line_x, stop_line_y)
+                closest_stop_line = stop_line_waypoints_and_deltas[0] 
 
-                # use x, y position to look up light state
-                light_idx = [i for i, v in enumerate(self.lights) \
-                    if abs(v.pose.pose.position.x - x) < POS_THRESHOLD and abs(v.pose.pose.position.y - y) < POS_THRESHOLD]
+                closest_sl_wp = closest_stop_line[0] 
 
-                if len(light_idx) > 0:
-                    color = self.lights[light_idx[0]].state
-                    rospy.loginfo("light ahead: delta_idx = %s, %s", closest_stop_line_waypoint_and_delta_idx[1], COLOR_STR[color])
+                # calculate distance between the car and the first light coming up
+                closest_stop_line_x = closest_stop_line[2]
+                closest_stop_line_y = closest_stop_line[3]
 
+                car_x = self.pose.pose.position.x
+                car_y = self.pose.pose.position.y
+
+                dist_car_and_stop_line = math.sqrt((car_x - closest_stop_line_x)**2 + (car_y - closest_stop_line_y)**2)
+
+                # use x, y position to look up light state of the first light coming up
+                # light_idx = [i for i, v in enumerate(self.lights) \
+                #     if abs(v.pose.pose.position.x - stop_line_x) < POS_THRESHOLD and abs(v.pose.pose.position.y - stop_line_y) < POS_THRESHOLD]
+                # color = self.lights[light_idx[0]].state
+
+                delta_tl_sl = []
+                
+                #
+                # 2. Find the traffic light that is closest to and ahead of the stop line we found above
+                #
+                # update traffic light way points
+                if len(self.lights) > 0:
+                    self.traffic_light_waypoints_ready = False
+                    self.calc_traffic_light_waypoints()
+
+                # proceed if successfully updated traffic light waypoints
+                if self.traffic_light_waypoints_ready:
+                    for tl_wp in self.traffic_light_waypoints:
+                        if tl_wp is not None:
+                            delta_idx_tl_sl = tl_wp[0] - closest_sl_wp # waypoint index difference between traffic light and stop line
+                            
+                            # unwrap
+                            if(delta_idx_tl_sl < 0):
+                                delta_idx_tl_sl += self.num_waypoints
+
+                            # save tuple ( delta_idx, the stop line wp index, traffic light wp tuple 
+                            # traffic light wp tuple includes traffic light wp index, x, y, and light state)
+                            delta_tl_sl.append((delta_idx_tl_sl,  closest_sl_wp,  tl_wp))
+
+                    # sort, closest traffic light ahead of given stop line first
+                    delta_tl_sl.sort(key=lambda s:s[0])
+
+                    # if found
+                    if len(delta_tl_sl) > 0:
+
+                        tl_wp = delta_tl_sl[0][2][0] #delta_tl_sl[0][2] is tl_wp and tl_wp[0] is waypoint of the traffic light
+                        # we use the ground truth here, need to be replaced with tl_classifier
+                        light_state_ground_truth = delta_tl_sl[0][2][3] #delta_tl_sl[0][2] is tl_wp and tl_wp[3] is light state
+                        tl_state = light_state_ground_truth;
+
+                        rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
+                        #return tl_wp, tl_state
 
         # --- Why not this instead of the above?
         #
