@@ -95,10 +95,10 @@ class TLDetector(object):
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
-            rospy.loginfo("image_cb publishing new %s", int(self.last_wp))
+            #rospy.loginfo("image_cb publishing new %s", int(self.last_wp))
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-            rospy.loginfo("image_cb publishing last red tl wp index %s", int(self.last_wp))
+            #rospy.loginfo("image_cb publishing last red tl wp index %s", int(self.last_wp))
 
         self.state_count += 1
 
@@ -287,8 +287,8 @@ class TLDetector(object):
                         light_state_ground_truth = delta_tl_sl[0][2][3] #delta_tl_sl[0][2] is tl_wp and tl_wp[3] is light state
                         tl_state = light_state_ground_truth
 
-                        #rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
-                        return tl_wp, tl_state
+                        rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
+                        return delta_tl_sl[0][1], tl_state
 
         # --- Why not this instead of the above?
         #
