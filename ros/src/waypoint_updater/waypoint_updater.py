@@ -23,8 +23,8 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 300  # Number of waypoints we will publish. You can change this number
-ACCELERATION_MAX = 0.25  # copied from waypoint_loader
+LOOKAHEAD_WPS = 60  # Number of waypoints we will publish. You can change this number
+ACCELERATION_MAX = 1.0  # copied from waypoint_loader
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -101,15 +101,16 @@ class WaypointUpdater(object):
         if traffic_light_wp != -1: # red traffic light
             #self.update_wp_velocities(traffic_light_wp)
             if traffic_light_wp - self.current_wp < LOOKAHEAD_WPS:
-                traffic_light_wp -= 10
+                traffic_light_wp -= 5 # a small safety buffer
                 self.final_waypoints = self.decelerate(self.final_waypoints, traffic_light_wp - self.current_wp)
                 self.updated_velocity_flag = True
             #rospy.loginfo("Traffic_cb got red tl wp index %s", traffic_light_wp)
         else:
             self.updated_velocity_flag = False
             velocity = self.kmph2mps(rospy.get_param('~velocity'))
-            for wp in self.final_waypoints:
-                wp.twist.twist.linear.x = velocity
+            if self.final_waypoints is not None:
+                for wp in self.final_waypoints:
+                    wp.twist.twist.linear.x = velocity
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -162,7 +163,7 @@ class WaypointUpdater(object):
             #rospy.loginfo("publish_waypoints set final_waypoints back to self.waypoints")
         lane.waypoints = self.final_waypoints
         #for i in range(0, 10):
-        rospy.loginfo("publish_waypoints current velocity %s", self.final_waypoints[0].twist.twist.linear.x)
+        #rospy.loginfo("publish_waypoints current velocity %s", self.final_waypoints[0].twist.twist.linear.x)
 
         lane.header.frame_id = '/world'
         lane.header.stamp = rospy.Time(0)

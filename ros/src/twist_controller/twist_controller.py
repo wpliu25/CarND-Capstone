@@ -6,9 +6,9 @@ from pid import PID
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
-MAX_THROTTLE = 1
+MAX_THROTTLE = 1.0
 MIN_THROTTLE = 0.001
-
+BRAKE_COEFF  = 300.0
 
 class Controller(object):
     def __init__(self, *args, **kwargs):
@@ -18,7 +18,7 @@ class Controller(object):
 
         self.low_pass_filter = LowPassFilter(0.2, 0.1)
 
-        self.throttle_control = PID(0.3, 0.0001, 0, -MAX_THROTTLE, MAX_THROTTLE)
+        self.throttle_control = PID(0.3, 0.0, 0.0001, -MAX_THROTTLE, MAX_THROTTLE)
 
         self.last_run_ts = None
 
@@ -35,13 +35,16 @@ class Controller(object):
 
         cross_track_error_for_v = v.x - current_v.x
         throttle = self.throttle_control.step(cross_track_error_for_v, time_passed)
-
         brake = 0.0
-
         if cross_track_error_for_v < 0:
-            # it seems like we need to push brake
-            brake = 1.0
+            brake = BRAKE_COEFF*abs(throttle)
             throttle = 0.0
+        # brake = 0.0
+
+        # if cross_track_error_for_v < 0:
+        #     # it seems like we need to push brake
+        #     brake = 10.0
+        #     throttle = 0.0
 
         steer = self.yaw_control.get_steering(v.x, w.z, current_v.x)
         steer = self.low_pass_filter.filt(steer)
