@@ -287,7 +287,7 @@ class TLDetector(object):
                         light_state_ground_truth = delta_tl_sl[0][2][3] #delta_tl_sl[0][2] is tl_wp and tl_wp[3] is light state
                         tl_state = light_state_ground_truth
 
-                        rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
+                        #rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
                         return delta_tl_sl[0][1], tl_state
 
         # --- Why not this instead of the above?
