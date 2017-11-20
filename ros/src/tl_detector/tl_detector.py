@@ -42,6 +42,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
         self.light_classifier = None
+        self.current_stop_line_wp = None
 
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -244,10 +245,10 @@ class TLDetector(object):
                     # this is necessary when we are close to the largest way point number
                     # because every stop line will be behind the car, i.e., delta_idx < 0
                     if delta_idx < 0:
-                        if i == len(self.stop_line_waypoints) -1:
-                            delta_idx += self.num_waypoints
-                        else:
-                            continue
+                        # if i == len(self.stop_line_waypoints) -1:
+                        #     delta_idx += self.num_waypoints
+                        # else:
+                        continue
 
                     if delta_idx < closest_delta_idx:
                         closed_stop_line_idx = i
@@ -294,10 +295,10 @@ class TLDetector(object):
                             
                             # unwrap
                             if delta_idx_tl_sl < 0:
-                                if i == len(self.traffic_light_waypoints) - 1:
-                                    delta_idx_tl_sl += self.num_waypoints
-                                else:
-                                    continue
+                                # if i == len(self.traffic_light_waypoints) - 1:
+                                #     delta_idx_tl_sl += self.num_waypoints
+                                # else:
+                                continue
 
                             # save tuple ( delta_idx, the stop line wp index, traffic light wp tuple 
                             # traffic light wp tuple includes traffic light wp index, x, y, and light state)
@@ -314,10 +315,11 @@ class TLDetector(object):
                         light_state_ground_truth = delta_tl_sl[0][2][3] #delta_tl_sl[0][2] is tl_wp and tl_wp[3] is light state
                         tl_ground_truth_state = light_state_ground_truth
                         stop_line_wp = delta_tl_sl[0][1]
+                        self.current_stop_line_wp = stop_line_wp
 
                         #rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
                         if self.use_tl_groundtruth:
-                            return stop_line_wp, tl_ground_truth_state
+                            return self.current_stop_line_wp, tl_ground_truth_state
 
         # --- Why not this instead of the above?
         #
@@ -340,7 +342,7 @@ class TLDetector(object):
             gt_color = TrafficLightColor(tl_ground_truth_state).name
             rospy.loginfo("Traffic light detected %s, gt %s", tl_color,
                           gt_color)
-            return stop_line_wp, tl_state
+            return self.current_stop_line_wp, tl_state
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
