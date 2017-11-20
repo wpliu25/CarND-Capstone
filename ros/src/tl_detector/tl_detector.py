@@ -13,7 +13,8 @@ import yaml
 import math
 from enum import Enum
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 1
+
 class TrafficLightColor(Enum):
     RED = 0
     YELLOW = 1
@@ -42,6 +43,7 @@ class TLDetector(object):
         self.state_count = 0
         self.light_classifier = None
 
+
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -65,7 +67,40 @@ class TLDetector(object):
         self.light_classifier = TLClassifier(simulator)
         self.listener = tf.TransformListener()
 
-        rospy.spin()
+        self.loop()
+
+    def loop(self):
+        rate = rospy.Rate(1)  # 50Hz
+        while not rospy.is_shutdown():
+
+            if self.pose is None or self.camera_image is None:
+                continue
+
+            light_wp, state = self.process_traffic_lights()
+
+            '''
+            Publish upcoming red lights at camera frequency.
+            Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
+            of times till we start using it. Otherwise the previous stable state is
+            used.
+            '''
+            if state != TrafficLight.UNKNOWN:
+                if self.state != state:
+                    self.state_count = 0
+                    self.state = state
+                elif self.state_count >= STATE_COUNT_THRESHOLD:
+                    self.last_state = self.state
+                    light_wp = light_wp if state == TrafficLight.RED else -1
+                    self.last_wp = light_wp
+                    self.upcoming_red_light_pub.publish(Int32(light_wp))
+                    # rospy.loginfo("image_cb publishing new %s", int(self.last_wp))
+                else:
+                    self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+                    # rospy.loginfo("image_cb publishing last red tl wp index %s", int(self.last_wp))
+
+                self.state_count += 1
+
+            rate.sleep()
 
     def pose_cb(self, msg):
         self.pose = msg
@@ -88,29 +123,7 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
-        light_wp, state = self.process_traffic_lights()
 
-        '''
-        Publish upcoming red lights at camera frequency.
-        Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
-        of times till we start using it. Otherwise the previous stable state is
-        used.
-        '''
-        if state != TrafficLight.UNKNOWN:
-            if self.state != state:
-                self.state_count = 0
-                self.state = state
-            elif self.state_count >= STATE_COUNT_THRESHOLD:
-                self.last_state = self.state
-                light_wp = light_wp if state == TrafficLight.RED else -1
-                self.last_wp = light_wp
-                self.upcoming_red_light_pub.publish(Int32(light_wp))
-                #rospy.loginfo("image_cb publishing new %s", int(self.last_wp))
-            else:
-                self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-                #rospy.loginfo("image_cb publishing last red tl wp index %s", int(self.last_wp))
-
-            self.state_count += 1
 
     def get_closest_waypoint(self, pose):
         """Identifies the closest path waypoint to the given position
@@ -207,7 +220,7 @@ class TLDetector(object):
         stop_line_wp = None
         tl_ground_truth_state = TrafficLight.UNKNOWN
         
-        if(self.pose):
+        if self.pose:
             car_wp = self.get_closest_waypoint(self.pose.pose)
             # str = 'closest way point: %s'%car_position
             # rospy.loginfo(str)
@@ -217,27 +230,29 @@ class TLDetector(object):
         #
         # 1.1. Find all the stop lines' relative way point distance from the car
         stop_line_waypoints_and_deltas = []
-        if self.stop_line_waypoints is not None and car_wp is not None:
-            for t in self.stop_line_waypoints: 
-                sl_wp = t[0]
-                stop_line_x = t[1]
-                stop_line_y = t[2]
 
+        closed_stop_line_idx = None
+        closest_delta_idx = 20000000
+
+        if self.stop_line_waypoints is not None and car_wp is not None:
+
+            for i, t in enumerate(self.stop_line_waypoints):
+                sl_wp = t[0]
                 if sl_wp is not None:
                     delta_idx = sl_wp - car_wp
                     # unwrap index if the stop line is behind our car
                     # this is necessary when we are close to the largest way point number
                     # because every stop line will be behind the car, i.e., delta_idx < 0
-                    if(delta_idx < 0):
-                        delta_idx += self.num_waypoints
+                    if delta_idx < 0:
+                        if i == len(self.stop_line_waypoints) -1:
+                            delta_idx += self.num_waypoints
+                        else:
+                            continue
 
-                    stop_line_waypoints_and_deltas.append((sl_wp, delta_idx, stop_line_x, stop_line_y))
+                    if delta_idx < closest_delta_idx:
+                        closed_stop_line_idx = i
+                        closest_delta_idx = delta_idx
 
-                    # if(delta_idx < 50):
-                    #     #light = 0
-                    #     #state = 0
-                    #     
-                    #     #return idx, 0
             POS_THRESHOLD = 50.0
             COLOR_STR = ['RED', 'YELLOW', 'GREEN', 'NAN', 'UNKNOWN']
 
@@ -245,29 +260,21 @@ class TLDetector(object):
             #
             # 1.2. Find the closest stop line ahead of the car
             #
-            if(len(stop_line_waypoints_and_deltas) > 0):
-                # sort the list by delta_idx, closest light first
-                stop_line_waypoints_and_deltas.sort(key=lambda s:s[1])
-                
-                # choose the first/closest light
-                # closest_stop_line is a tuple of (sl_wp, delta_idx, stop_line_x, stop_line_y)
-                closest_stop_line = stop_line_waypoints_and_deltas[0] 
+            if closed_stop_line_idx is not None:
 
-                closest_sl_wp = closest_stop_line[0] 
+                closest_sl_wp = self.stop_line_waypoints[closed_stop_line_idx][0]
 
                 # calculate distance between the car and the first light coming up
-                closest_stop_line_x = closest_stop_line[2]
-                closest_stop_line_y = closest_stop_line[3]
+                closest_stop_line_x = self.stop_line_waypoints[closed_stop_line_idx][1]
+                closest_stop_line_y = self.stop_line_waypoints[closed_stop_line_idx][2]
 
                 car_x = self.pose.pose.position.x
                 car_y = self.pose.pose.position.y
 
                 dist_car_and_stop_line = math.sqrt((car_x - closest_stop_line_x)**2 + (car_y - closest_stop_line_y)**2)
 
-                # use x, y position to look up light state of the first light coming up
-                # light_idx = [i for i, v in enumerate(self.lights) \
-                #     if abs(v.pose.pose.position.x - stop_line_x) < POS_THRESHOLD and abs(v.pose.pose.position.y - stop_line_y) < POS_THRESHOLD]
-                # color = self.lights[light_idx[0]].state
+                if dist_car_and_stop_line > 300:
+                    return closest_sl_wp, TrafficLight.UNKNOWN
 
                 delta_tl_sl = []
                 
@@ -281,13 +288,16 @@ class TLDetector(object):
 
                 # proceed if successfully updated traffic light waypoints
                 if self.traffic_light_waypoints_ready:
-                    for tl_wp in self.traffic_light_waypoints:
+                    for i, tl_wp in enumerate(self.traffic_light_waypoints):
                         if tl_wp is not None:
                             delta_idx_tl_sl = tl_wp[0] - closest_sl_wp # waypoint index difference between traffic light and stop line
                             
                             # unwrap
-                            if(delta_idx_tl_sl < 0):
-                                delta_idx_tl_sl += self.num_waypoints
+                            if delta_idx_tl_sl < 0:
+                                if i == len(self.traffic_light_waypoints) - 1:
+                                    delta_idx_tl_sl += self.num_waypoints
+                                else:
+                                    continue
 
                             # save tuple ( delta_idx, the stop line wp index, traffic light wp tuple 
                             # traffic light wp tuple includes traffic light wp index, x, y, and light state)
