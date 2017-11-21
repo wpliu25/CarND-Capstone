@@ -175,7 +175,7 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width, channels = cv_image.shape
         cv_small = cv_image[:, 0: int(height/1.3)]  # take more image for processing
-        cv_small = cv2.resize(cv_small, (0, 0), fx=0.5, fy=0.5)
+        #cv_small = cv2.resize(cv_small, (0, 0), fx=0.5, fy=0.5)
 
         #Get classification
         if self.light_classifier:
@@ -310,20 +310,6 @@ class TLDetector(object):
                         if self.use_tl_groundtruth:
                             return self.current_stop_line_wp, tl_ground_truth_state
 
-        # --- Why not this instead of the above?
-        #
-        # approaching_stop_light_waypoint = None
-        # approaching_stop_light_color = None
-        #
-        # for stop_line_pos in stop_line_positions:
-        #     stop_light_waypoint = self.get_closest_waypoint(stop_line_position)
-        #     # Get color ID from styx_msgs/TrafficLight !!
-        #     stop_light_color = 'Get color ID from styx_msgs/TrafficLight'
-        #
-        #     # Check first occurrance of waypoint corresponding to light that is beyond car's waypoint
-        #     if stop_light_waypoint >= car_position:
-        #         approaching_stop_light_waypoint = stop_light_waypoint
-        #         approaching_light_color = stop_light_color
 
         if not self.use_tl_groundtruth:
             tl_state = self.get_light_state()
