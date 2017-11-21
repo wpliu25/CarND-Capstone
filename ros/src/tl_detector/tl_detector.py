@@ -174,7 +174,7 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width, channels = cv_image.shape
-        cv_small = cv_image[:, 0: height/2]
+        cv_small = cv_image[:, 0: int(height/1.3)]  # take more image for processing
         cv_small = cv2.resize(cv_small, (0, 0), fx=0.5, fy=0.5)
 
         #Get classification
@@ -241,13 +241,7 @@ class TLDetector(object):
                 sl_wp = t[0]
                 if sl_wp is not None:
                     delta_idx = sl_wp - car_wp
-                    # unwrap index if the stop line is behind our car
-                    # this is necessary when we are close to the largest way point number
-                    # because every stop line will be behind the car, i.e., delta_idx < 0
                     if delta_idx < 0:
-                        # if i == len(self.stop_line_waypoints) -1:
-                        #     delta_idx += self.num_waypoints
-                        # else:
                         continue
 
                     if delta_idx < closest_delta_idx:
@@ -292,12 +286,7 @@ class TLDetector(object):
                     for i, tl_wp in enumerate(self.traffic_light_waypoints):
                         if tl_wp is not None:
                             delta_idx_tl_sl = tl_wp[0] - closest_sl_wp # waypoint index difference between traffic light and stop line
-                            
-                            # unwrap
                             if delta_idx_tl_sl < 0:
-                                # if i == len(self.traffic_light_waypoints) - 1:
-                                #     delta_idx_tl_sl += self.num_waypoints
-                                # else:
                                 continue
 
                             # save tuple ( delta_idx, the stop line wp index, traffic light wp tuple 

@@ -108,8 +108,10 @@ class TLClassifier(object):
             scores = np.squeeze(scores)
             classes = np.squeeze(classes).astype(np.int32)
 
+            rospy.loginfo('classes: %s \n scores %s ' % (classes[:5], scores[:5]))
+
             # light color prediction
-            min_score_thresh = .50
+            min_score_thresh = .30
             for i in range(boxes.shape[0]):
                 if scores is None or scores[i] > min_score_thresh:
                     class_name = self.category_index[classes[i]]['name']
@@ -119,6 +121,7 @@ class TLClassifier(object):
                         self.current_light = TrafficLight.GREEN
                     elif class_name == 'Yellow':
                         self.current_light = TrafficLight.YELLOW
+                    break # Here we go we found best match!
 
         else:
 
