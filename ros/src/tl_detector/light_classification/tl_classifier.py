@@ -69,11 +69,18 @@ class TLClassifier(object):
 
             cwd = os.path.dirname(os.path.realpath(__file__))
 
-            options = {"model": os.path.join(cwd, "cfg/yolo_bosch.cfg"),
-                       "labels": os.path.join(cwd, "labels.txt"),
-                       "metaload": os.path.join(cwd, "ckpt/yolo_bosch-80000.meta"),
-                       "summary": None,
-                       "threshold": 0.1}
+            options = {
+                       "summary": None}
+
+            if self.simulator:
+                options["model"] = os.path.join(cwd, "cfg/sim_data.cfg")
+                options["metaload"] = os.path.join(cwd, "ckpt/sim_data-34500.meta")
+                options["labels"] = os.path.join(cwd, "ckpt/labels_sim.txt")
+            else:
+                options["model"] = os.path.join(cwd, "cfg/yolo_bosch.cfg")
+                options["metaload"] = os.path.join(cwd, "ckpt/yolo_bosch-80000.meta")
+                options["labels"] = os.path.join(cwd, "ckpt/labels_real.txt")
+                options["threshold"] = 0.1
 
             if use_gpu:
                 options["gpu"] = 1.0
@@ -123,6 +130,8 @@ class TLClassifier(object):
         else:
 
             result = self.tfnet.return_predict(image)
+
+            rospy.loginfo(result)
 
             if not result:
                 self.current_light = TrafficLight.UNKNOWN
