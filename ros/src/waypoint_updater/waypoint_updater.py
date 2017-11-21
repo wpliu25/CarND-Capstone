@@ -155,7 +155,7 @@ class WaypointUpdater(object):
 
         speed_up = True
         if self.traffic_light_wp != -1:  # red traffic light
-            if (self.traffic_light_wp - self.current_wp) < LOOKAHEAD_WPS:
+            if (self.traffic_light_wp - self.current_wp) < LOOKAHEAD_WPS and (self.traffic_light_wp - self.current_wp) > 0:
                 self.decelerate(final_waypoints, self.traffic_light_wp - self.current_wp - 7)
                 speed_up = False
 

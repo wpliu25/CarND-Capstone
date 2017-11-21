@@ -271,8 +271,6 @@ class TLDetector(object):
                 if dist_car_and_stop_line > 300:
                     return closest_sl_wp, TrafficLight.UNKNOWN
 
-                delta_tl_sl = []
-                
                 #
                 # 2. Find the traffic light that is closest to and ahead of the stop line we found above
                 #
@@ -283,47 +281,27 @@ class TLDetector(object):
 
                 # proceed if successfully updated traffic light waypoints
                 if self.traffic_light_waypoints_ready:
+
+                    closest_tl_wp_delta = 20000
+                    closest_tl_wp = None
                     for i, tl_wp in enumerate(self.traffic_light_waypoints):
+
                         if tl_wp is not None:
-                            delta_idx_tl_sl = tl_wp[0] - closest_sl_wp # waypoint index difference between traffic light and stop line
+                            delta_idx_tl_sl = tl_wp[0] - closest_sl_wp  # waypoint index difference between traffic light and stop line
                             if delta_idx_tl_sl < 0:
                                 continue
 
-                            # save tuple ( delta_idx, the stop line wp index, traffic light wp tuple 
-                            # traffic light wp tuple includes traffic light wp index, x, y, and light state)
-                            delta_tl_sl.append((delta_idx_tl_sl,  closest_sl_wp,  tl_wp))
+                            if delta_idx_tl_sl < closest_tl_wp_delta:
+                                closest_tl_wp_delta = delta_idx_tl_sl
+                                closest_tl_wp = tl_wp
 
-                    # sort, closest traffic light ahead of given stop line first
-                    delta_tl_sl.sort(key=lambda s:s[0])
-
-                    # if found
-                    if len(delta_tl_sl) > 0:
-
-                        tl_wp = delta_tl_sl[0][2][0] #delta_tl_sl[0][2] is tl_wp and tl_wp[0] is waypoint of the traffic light
-                        # we use the ground truth here, need to be replaced with tl_classifier
-                        light_state_ground_truth = delta_tl_sl[0][2][3] #delta_tl_sl[0][2] is tl_wp and tl_wp[3] is light state
-                        tl_ground_truth_state = light_state_ground_truth
-                        stop_line_wp = delta_tl_sl[0][1]
+                    if closest_tl_wp is not None:
+                        tl_ground_truth_state = closest_tl_wp[3]
+                        stop_line_wp = closest_sl_wp
                         self.current_stop_line_wp = stop_line_wp
-
                         #rospy.loginfo("Traffic light in %s m, color is %s", dist_car_and_stop_line, COLOR_STR[light_state_ground_truth])
                         if self.use_tl_groundtruth:
                             return self.current_stop_line_wp, tl_ground_truth_state
-
-        # --- Why not this instead of the above?
-        #
-        # approaching_stop_light_waypoint = None
-        # approaching_stop_light_color = None
-        #
-        # for stop_line_pos in stop_line_positions:
-        #     stop_light_waypoint = self.get_closest_waypoint(stop_line_position)
-        #     # Get color ID from styx_msgs/TrafficLight !!
-        #     stop_light_color = 'Get color ID from styx_msgs/TrafficLight'
-        #
-        #     # Check first occurrance of waypoint corresponding to light that is beyond car's waypoint
-        #     if stop_light_waypoint >= car_position:
-        #         approaching_stop_light_waypoint = stop_light_waypoint
-        #         approaching_light_color = stop_light_color
 
         if not self.use_tl_groundtruth:
             tl_state = self.get_light_state()
