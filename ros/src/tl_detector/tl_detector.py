@@ -23,7 +23,7 @@ class TrafficLightColor(Enum):
     UNKNOWN = 4
 
 class TLDetector(object):
-    def __init__(self, use_tl_groundtruth=False, simulator=True):
+    def __init__(self, use_tl_groundtruth=False, simulator=False):
         rospy.init_node('tl_detector')
 
         self.pose = None
