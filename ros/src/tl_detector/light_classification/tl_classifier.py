@@ -4,9 +4,11 @@ import numpy as np
 import os
 import tensorflow as tf
 from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils
 from darkflow.net.build import TFNet
 import rospy
 import time
+import cv2
 
 class TLClassifier(object):
     def __init__(self, simulator=True):
@@ -61,7 +63,7 @@ class TLClassifier(object):
             self.num_detections = self.classifer_graph.get_tensor_by_name(
                 'num_detections:0')
 
-            rospy.loginfo("*** TF classifer loaded! ***")
+            rospy.loginfo("*** TF classifer {} loaded! ***".format(CKPT))
 
         else:
 
@@ -122,6 +124,16 @@ class TLClassifier(object):
                     elif class_name == 'Yellow':
                         self.current_light = TrafficLight.YELLOW
                     break # Here we go we found best match!
+
+            # Visualization of the results of a detection.
+            visualization_utils.visualize_boxes_and_labels_on_image_array(
+                image, boxes, classes, scores,
+                self.category_index,
+                use_normalized_coordinates=True,
+                line_thickness=8)  # For visualization topic output
+            self._current_image = image
+            cv2.imshow('image', image)
+            cv2.waitKey(1)
 
         else:
 
