@@ -159,6 +159,8 @@ class WaypointUpdater(object):
                 self.decelerate(final_waypoints, self.traffic_light_wp - self.current_wp - 7)
                 speed_up = False
 
+        rospy.logdebug("WPU: speedup : {}".format(speed_up))
+
         if speed_up:
             velocity = self.kmph2mps(rospy.get_param('~velocity'))
             if final_waypoints is not None:

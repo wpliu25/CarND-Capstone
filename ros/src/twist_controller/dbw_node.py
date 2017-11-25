@@ -84,6 +84,7 @@ class DBWNode(object):
             rospy.logdebug("Throttle: {}".format(throttle))
             rospy.logdebug("Brake: {}".format(brake))
             rospy.logdebug("Steering: {}".format(steering))
+            rospy.logdebug("DBW enabled: {}".format(self.dbw_enabled))
 
             if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
