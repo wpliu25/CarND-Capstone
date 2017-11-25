@@ -26,6 +26,7 @@ class Controller(object):
     def control(self, v, w, current_v, dbw_status):
         if self.last_run_ts is None or not dbw_status:
             self.last_run_ts = rospy.get_time()
+            self.throttle_control.reset()
             return 0.0, 0.0, 0.0
 
         time_passed = rospy.get_time() - self.last_run_ts
