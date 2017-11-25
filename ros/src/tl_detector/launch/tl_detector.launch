@@ -3,6 +3,6 @@
     <node pkg="tl_detector" type="tl_detector.py" name="tl_detector" output="screen" cwd="node">
           <param name="simulator" value="1" />
           <param name="debug" value="0"/>
-          <param name="detection_rate" value="1"/>
+          <param name="detection_rate" value="50"/>
     </node>
 </launch>
