@@ -80,6 +80,11 @@ class DBWNode(object):
                                                                 self.twist_cmd.twist.angular,
                                                                 self.current_velocity.twist.linear,
                                                                 self.dbw_enabled)
+
+            rospy.logdebug("Throttle: {}".format(throttle))
+            rospy.logdebug("Brake: {}".format(brake))
+            rospy.logdebug("Steering: {}".format(steering))
+
             if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
 
@@ -113,7 +118,7 @@ class DBWNode(object):
         self.current_velocity = msg
 
     def twist_cmd_cb(self, msg):
-        #rospy.loginfo("Received twist cmd: %s", msg)
+        rospy.logdebug("Received twist cmd: %s", msg)
         self.twist_cmd = msg
 
 

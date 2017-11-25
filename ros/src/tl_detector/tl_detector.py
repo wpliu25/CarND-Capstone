@@ -66,7 +66,7 @@ class TLDetector(object):
 
         self.bridge = CvBridge()
         self.debug = rospy.get_param('~debug')
-	self.simulator = rospy.get_param('~simulator')
+        self.simulator = rospy.get_param('~simulator')
         self.light_classifier = TLClassifier(self.debug,
                                              self.simulator)
         self.listener = tf.TransformListener()
@@ -74,12 +74,13 @@ class TLDetector(object):
         self.loop()
 
     def loop(self):
-        rate = rospy.Rate(1)  # 50Hz
+        rate = rospy.Rate(rospy.get_param('~detection_rate'))
+        rospy.logdebug("Tl-Detector runs with {} Hz", rate)
         while not rospy.is_shutdown():
 
             if self.pose is None or self.camera_image is None:
                 continue
-
+            
             light_wp, state = self.process_traffic_lights()
 
             '''
@@ -222,16 +223,15 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+
         car_wp = None
         stop_line_wp = None
         tl_ground_truth_state = TrafficLight.UNKNOWN
         
         if self.pose:
             car_wp = self.get_closest_waypoint(self.pose.pose)
-            # str = 'closest way point: %s'%car_position
-            # rospy.loginfo(str)
+            rospy.logdebug('Found closest waypoint at {}'.format(car_wp))
 
-        #TODO find the closest visible traffic light (if one exists)
         # 1. find the closest stop line ahead
         #
         # 1.1. Find all the stop lines' relative way point distance from the car
@@ -253,7 +253,11 @@ class TLDetector(object):
                         closed_stop_line_idx = i
                         closest_delta_idx = delta_idx
 
-            POS_THRESHOLD = 50.0
+            if closed_stop_line_idx == None:
+                rospy.logwarn("Coludn't find next sopline waypoint")
+            else:
+                rospy.logdebug("Found closest stopline waypoints at {}".format(closed_stop_line_idx))
+
             COLOR_STR = ['RED', 'YELLOW', 'GREEN', 'NAN', 'UNKNOWN']
 
             # Now we have found all the stop lines' way points and their relative way point distance from the car
