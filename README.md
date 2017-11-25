@@ -9,7 +9,7 @@ This is the Team Giskard's project repo for the final project of the Udacity Sel
 | Denis Moroz                   | moroz.denis@gmail.com        |
 | Iñigo Javier Puente Henales   | inigojpuente@gmail.com       |
 | Rainer Valek                  | rainer.valek@gmail.com       |
-| Wen Liu                       | wpliu@gmail.com              |
+| Wen Liu                       | wpliu25@gmail.com            |
 | Xingchi He (Team Lead)        | xingchi.he@gmail.com         |
 
 ### Native Installation
