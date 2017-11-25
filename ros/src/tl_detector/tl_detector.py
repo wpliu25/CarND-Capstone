@@ -23,7 +23,7 @@ class TrafficLightColor(Enum):
     UNKNOWN = 4
 
 class TLDetector(object):
-    def __init__(self, use_tl_groundtruth=False, simulator=False):
+    def __init__(self, use_tl_groundtruth=False):
         rospy.init_node('tl_detector')
 
         self.pose = None
@@ -65,7 +65,9 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier(simulator)
+        self.debug = rospy.get_param('~debug')
+        self.light_classifier = TLClassifier(rospy.get_param('~debug'),
+                                             rospy.get_param('~simulator'))
         self.listener = tf.TransformListener()
 
         self.loop()
@@ -173,13 +175,14 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-        height, width, channels = cv_image.shape
-        cv_small = cv_image[:, 0: int(height/1.3)]  # take more image for processing
-        cv_small = cv2.resize(cv_small, (0, 0), fx=0.5, fy=0.5)
+        #height, width, channels = cv_image.shape
+        #cv_small = cv_image[:, 0: int(height/1.3)]  # take more image for
+        # processing
+        #cv_small = cv2.resize(cv_small, (0, 0), fx=0.5, fy=0.5)
 
         #Get classification
         if self.light_classifier:
-            return self.light_classifier.get_classification(cv_small)
+            return self.light_classifier.get_classification(cv_image)
         else:
             return TrafficLight.UNKNOWN
 
@@ -307,8 +310,9 @@ class TLDetector(object):
             tl_state = self.get_light_state()
             tl_color = TrafficLightColor(tl_state).name
             gt_color = TrafficLightColor(tl_ground_truth_state).name
-            rospy.loginfo("Traffic light detected %s, gt %s", tl_color,
-                          gt_color)
+            if self.debug:
+                rospy.loginfo("Traffic light detected %s, gt %s", tl_color,
+                              gt_color)
             return self.current_stop_line_wp, tl_state
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN

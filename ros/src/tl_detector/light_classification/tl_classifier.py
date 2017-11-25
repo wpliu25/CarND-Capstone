@@ -11,9 +11,12 @@ import time
 import cv2
 
 class TLClassifier(object):
-    def __init__(self, simulator=True):
-
+    def __init__(self, debug=False, simulator=False):
+        self.debug = debug
         self.tryDarkflow = False
+        if self.debug:
+            cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('image', 500, 500)
 
         self.simulator = simulator
         self.current_light = TrafficLight.UNKNOWN
@@ -36,6 +39,7 @@ class TLClassifier(object):
 
             # get label map categories
             self.category_index = label_map_util.create_category_index(categories)
+            print self.category_index
 
             # TF graph set up
             self.classifer_graph = tf.Graph()
@@ -92,7 +96,8 @@ class TLClassifier(object):
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
         """
-        tic = time.time()
+        if self.debug:
+            tic = time.time()
 
         if not self.tryDarkflow:
 
@@ -110,10 +115,11 @@ class TLClassifier(object):
             scores = np.squeeze(scores)
             classes = np.squeeze(classes).astype(np.int32)
 
-            rospy.loginfo('classes: %s \n scores %s ' % (classes[:5], scores[:5]))
+            if self.debug:
+                rospy.loginfo('classes: %s \n scores %s ' % (classes[:5], scores[:5]))
 
             # light color prediction
-            min_score_thresh = .30
+            min_score_thresh = .3
             for i in range(boxes.shape[0]):
                 if scores is None or scores[i] > min_score_thresh:
                     class_name = self.category_index[classes[i]]['name']
@@ -131,9 +137,10 @@ class TLClassifier(object):
                 self.category_index,
                 use_normalized_coordinates=True,
                 line_thickness=8)  # For visualization topic output
-            self._current_image = image
-            cv2.imshow('image', image)
-            cv2.waitKey(1)
+            if self.debug:
+                self._current_image = image
+                cv2.imshow('image', image)
+                cv2.waitKey(1)
 
         else:
 
@@ -159,6 +166,7 @@ class TLClassifier(object):
             if green:
                 self.current_light = TrafficLight.GREEN
 
-        toc = time.time()
-        rospy.loginfo('classifier took {} sec'.format(toc-tic))
+        if self.debug:
+            toc = time.time()
+            rospy.loginfo('classifier took {} sec'.format(toc-tic))
         return self.current_light
