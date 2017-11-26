@@ -9,6 +9,24 @@ import rospy
 import time
 import cv2
 
+import sys
+from functools import partial
+def join_graph(directory, filename, chunksize=1024):
+    print "Restoring:", filename, "\nfrom directory:", directory
+    if os.path.exists(directory):
+        if os.path.exists(filename):
+            os.remove(filename)
+        output = open(filename, 'wb')
+        chunks = os.listdir(directory)
+        chunks.sort()
+        for fname in chunks:
+            fpath = os.path.join(directory, fname)
+            with open(fpath, 'rb') as fileobj:
+                for chunk in iter(partial(fileobj.read, chunksize), ''):
+                    output.write(chunk)
+        output.close()
+
+
 class TLClassifier(object):
     def __init__(self, debug=False, simulator=False):
         
@@ -25,8 +43,13 @@ class TLClassifier(object):
         # load different graphs dep on config, sim or real
         if self.simulator:
             CKPT = cwd + '/graphs/sim/frozen_inference_graph.pb'
+            if not os.path.exists(CKPT):
+                join_graph( (cwd + '/graphs/sim/frozen_inference_graph_chunks'), CKPT)
+
         else:
             CKPT = cwd + '/graphs/real/frozen_inference_graph.pb'
+            if not os.path.exists(CKPT):
+                join_graph( (cwd + '/graphs/real/frozen_inference_graph_chunks'), CKPT)
 
         label_map = label_map_util.load_labelmap(
             cwd + '/graphs/label_map.pbtxt')
