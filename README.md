@@ -14,10 +14,10 @@ This is the Team Giskard's project repo for the final project of the Udacity Sel
 
 ### Acknowledgement
 
- We would like to acknowledge Vatsal Srivastava and Anthony Sarkis for their work on exploring tensorflow object detection. Their articles listed below have provide us invaluable guidance for our traffic light classifier implementatoin.
+ We would like to acknowledge Vatsal Srivastava and Anthony Sarkis for their work on exploring tensorflow object detection. Their articles listed below have provide us invaluable guidance to our traffic light classifier implementatoin.
 
-[Vatsal Srivastava, "Self Driving Vehicles: Traffic Light Detection and Classification with TensorFlow Object Detection API"] [cold_knight] 
-[Anthony Sarkis, "Self-Driving Cars: Implementing Real-Time Traffic Light Detection and Classification in 2017"] [anthony_sarkis]
+[Vatsal Srivastava, \"Self Driving Vehicles: Traffic Light Detection and Classification with TensorFlow Object Detection API\"] [cold_knight] 
+[Anthony Sarkis, \"Self-Driving Cars: Implementing Real-Time Traffic Light Detection and Classification in 2017\"] [anthony_sarkis]
 
 [anthony_sarkis]: https://medium.com/@anthony_sarkis/self-driving-cars-implementing-real-time-traffic-light-detection-and-classification-in-2017-7d9ae8df1c58
 [cold_knight]: https://becominghuman.ai/traffic-light-detection-tensorflow-api-c75fdbadac62
