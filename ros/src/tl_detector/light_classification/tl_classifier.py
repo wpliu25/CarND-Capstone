@@ -9,6 +9,9 @@ import rospy
 import time
 import cv2
 
+import sys
+from functools import partial
+
 class TLClassifier(object):
     def __init__(self, debug=False, simulator=False):
         
@@ -26,12 +29,13 @@ class TLClassifier(object):
         if self.simulator:
             CKPT = cwd + '/graphs/sim/frozen_inference_graph.pb'
             if not os.path.exists(CKPT):
-                self.join_graph(cwd + '/graphs/sim/frozen_inference_graph_chunks', CKPT)
+                print
+                self.join_graph( (cwd + '/graphs/sim/frozen_inference_graph_chunks'), CKPT)
 
         else:
             CKPT = cwd + '/graphs/real/frozen_inference_graph.pb'
             if not os.path.exists(CKPT):
-                self.join_graph(cwd + '/graphs/real/frozen_inference_graph_chunks', CKPT)
+                self.join_graph( (cwd + '/graphs/real/frozen_inference_graph_chunks'), CKPT)
 
         label_map = label_map_util.load_labelmap(
             cwd + '/graphs/label_map.pbtxt')
