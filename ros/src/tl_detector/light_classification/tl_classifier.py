@@ -25,8 +25,13 @@ class TLClassifier(object):
         # load different graphs dep on config, sim or real
         if self.simulator:
             CKPT = cwd + '/graphs/sim/frozen_inference_graph.pb'
+            if not os.path.exists(CKPT):
+                self.join_graph(cwd + '/graphs/sim/frozen_inference_graph_chunks', CKPT)
+
         else:
             CKPT = cwd + '/graphs/real/frozen_inference_graph.pb'
+            if not os.path.exists(CKPT):
+                self.join_graph(cwd + '/graphs/real/frozen_inference_graph_chunks', CKPT)
 
         label_map = label_map_util.load_labelmap(
             cwd + '/graphs/label_map.pbtxt')
@@ -67,6 +72,20 @@ class TLClassifier(object):
 
         rospy.loginfo("*** TF classifer {} loaded! ***".format(CKPT))
 
+    def join_graph(directory, filename, chunksize=1024):
+        print "restoring:", filename, "from directory:", directory
+        if os.path.exists(directory):
+            if os.path.exists(filename):
+                os.remove(filename)
+            output = open(filename, 'wb')
+            chunks = os.listdir(directory)
+            chunks.sort()
+            for fname in chunks:
+                fpath = os.path.join(directory, fname)
+                with open(fpath, 'rb') as fileobj:
+                    for chunk in iter(partial(fileobj.read, chunksize), ''):
+                        output.write(chunk)
+            output.close()
 
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
